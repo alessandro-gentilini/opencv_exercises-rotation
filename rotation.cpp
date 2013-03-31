@@ -14,6 +14,68 @@ double distance(const cv::Point &a, const cv::Point &b)
     return sqrt(d.x * d.x + d.y * d.y);
 }
 
+void rotate( const cv::Mat &img, const cv::Point &center, int angle, cv::Mat &rotated, std::vector< cv::Point > &rotated_corners )
+{
+    cv::Mat rot( 2, 3, cv::DataType<double>::type );
+    rot = cv::getRotationMatrix2D( center, angle, 1 );
+
+    cv::Mat homogeneous_midpoint(3, 1, cv::DataType<double>::type);
+    homogeneous_midpoint.at<double>(0, 0) = img.cols / 2;
+    homogeneous_midpoint.at<double>(1, 0) = img.rows / 2;
+    homogeneous_midpoint.at<double>(2, 0) = 1;
+
+    cv::Mat top_left(3, 1, cv::DataType<double>::type);
+    top_left.at<double>(0, 0) = 0;
+    top_left.at<double>(1, 0) = 0;
+    top_left.at<double>(2, 0) = 1;
+
+    cv::Mat top_right(3, 1, cv::DataType<double>::type);
+    top_right.at<double>(0, 0) = img.cols;
+    top_right.at<double>(1, 0) = 0;
+    top_right.at<double>(2, 0) = 1;
+
+    cv::Mat bottom_right(3, 1, cv::DataType<double>::type);
+    bottom_right.at<double>(0, 0) = img.cols;
+    bottom_right.at<double>(1, 0) = img.rows;
+    bottom_right.at<double>(2, 0) = 1;
+
+    cv::Mat bottom_left(3, 1, cv::DataType<double>::type);
+    bottom_left.at<double>(0, 0) = 0;
+    bottom_left.at<double>(1, 0) = img.rows;
+    bottom_left.at<double>(2, 0) = 1;
+
+    cv::Mat top_left_rotated = rot * top_left;
+    cv::Mat top_right_rotated = rot * top_right;
+    cv::Mat bottom_right_rotated = rot * bottom_right;
+    cv::Mat bottom_left_rotated = rot * bottom_left;
+    cv::Mat rotated_midpoint = rot * homogeneous_midpoint;
+
+    rotated_corners[0] = cv::Point(top_left_rotated.at<double>(0, 0), top_left_rotated.at<double>(1, 0));
+    rotated_corners[1] = cv::Point(top_right_rotated.at<double>(0, 0), top_right_rotated.at<double>(1, 0));
+    rotated_corners[2] = cv::Point(bottom_right_rotated.at<double>(0, 0), bottom_right_rotated.at<double>(1, 0));
+    rotated_corners[3] = cv::Point(bottom_left_rotated.at<double>(0, 0), bottom_left_rotated.at<double>(1, 0));
+
+    cv::Rect bb( cv::boundingRect( rotated_corners ) );
+
+    // mi piacerebbe usare la cv::convertPointsToHomogeneous
+    // non c'è un modo semplice per usare cv::Mat come se fosse un opportuno cv::Point?
+    // mi sa che c'è un errore nei punti disegnati sui corner, forse per via della conversione implicita da double a int
+
+    cv::Size sz(bb.width, bb.height);
+
+    cv::Point displacement(bb.width / 2 - rotated_midpoint.at<double>(0, 0), bb.height / 2 - rotated_midpoint.at<double>(1, 0));
+
+    rot.at<double>(0, 2) += displacement.x;
+    rot.at<double>(1, 2) += displacement.y;
+
+    std::transform(rotated_corners.begin(), rotated_corners.end(), rotated_corners.begin(), [&displacement](const cv::Point & p)
+    {
+        return p + displacement;
+    });
+
+    cv::warpAffine(img, rotated, rot, sz, cv::INTER_LINEAR, cv::BORDER_CONSTANT, CV_RGB(0, 0, 0));
+}
+
 int main( int argc, char *argv[] )
 {
     cv::Mat model_img = cv::imread( argv[1] );
@@ -35,68 +97,11 @@ int main( int argc, char *argv[] )
     int alpha = unif_alpha(re);
     std::cout << "\nCentroid\t" << centroid << "\nangle\t" << alpha << "\n";
 
-    cv::Mat rot( 2, 3, cv::DataType<double>::type );
-    rot = cv::getRotationMatrix2D( centroid, alpha, 1 );
-
-    cv::Mat homogeneous_midpoint(3, 1, cv::DataType<double>::type);
-    homogeneous_midpoint.at<double>(0, 0) = model_img.cols / 2;
-    homogeneous_midpoint.at<double>(1, 0) = model_img.rows / 2;
-    homogeneous_midpoint.at<double>(2, 0) = 1;
-
-    cv::Mat top_left(3, 1, cv::DataType<double>::type);
-    top_left.at<double>(0, 0) = 0;
-    top_left.at<double>(1, 0) = 0;
-    top_left.at<double>(2, 0) = 1;
-
-    cv::Mat top_right(3, 1, cv::DataType<double>::type);
-    top_right.at<double>(0, 0) = model_img.cols;
-    top_right.at<double>(1, 0) = 0;
-    top_right.at<double>(2, 0) = 1;
-
-    cv::Mat bottom_right(3, 1, cv::DataType<double>::type);
-    bottom_right.at<double>(0, 0) = model_img.cols;
-    bottom_right.at<double>(1, 0) = model_img.rows;
-    bottom_right.at<double>(2, 0) = 1;
-
-    cv::Mat bottom_left(3, 1, cv::DataType<double>::type);
-    bottom_left.at<double>(0, 0) = 0;
-    bottom_left.at<double>(1, 0) = model_img.rows;
-    bottom_left.at<double>(2, 0) = 1;
-
-    cv::Mat top_left_rotated = rot * top_left;
-    cv::Mat top_right_rotated = rot * top_right;
-    cv::Mat bottom_right_rotated = rot * bottom_right;
-    cv::Mat bottom_left_rotated = rot * bottom_left;
-    cv::Mat rotated_midpoint = rot * homogeneous_midpoint;
-
-    std::vector< cv::Point > rotated_corners(4);
-    rotated_corners[0] = cv::Point(top_left_rotated.at<double>(0, 0), top_left_rotated.at<double>(1, 0));
-    rotated_corners[1] = cv::Point(top_right_rotated.at<double>(0, 0), top_right_rotated.at<double>(1, 0));
-    rotated_corners[2] = cv::Point(bottom_right_rotated.at<double>(0, 0), bottom_right_rotated.at<double>(1, 0));
-    rotated_corners[3] = cv::Point(bottom_left_rotated.at<double>(0, 0), bottom_left_rotated.at<double>(1, 0));
-
-    cv::Rect bb( cv::boundingRect( rotated_corners ) );
-
-    // mi piacerebbe usare la cv::convertPointsToHomogeneous
-    // non c'è un modo semplice per usare cv::Mat come se fosse un opportuno cv::Point?
-    // mi sa che c'è un errore nei punti disegnati sui corner, forse per via della conversione implicita da double a int
-
-    cv::Size sz(bb.width, bb.height);
-
-    cv::Point displacement(bb.width / 2 - rotated_midpoint.at<double>(0, 0), bb.height / 2 - rotated_midpoint.at<double>(1, 0));
-
-    rot.at<double>(0, 2) += displacement.x;
-    rot.at<double>(1, 2) += displacement.y;
-
     cv::Mat rotated;
-    cv::warpAffine(model_img, rotated, rot, sz, cv::INTER_LINEAR, cv::BORDER_CONSTANT, CV_RGB(0, 0, 0));
+    std::vector< cv::Point > rotated_corners(4);
+    rotate(model_img, centroid, alpha, rotated, rotated_corners);
 
-    std::transform(rotated_corners.begin(), rotated_corners.end(), rotated_corners.begin(), [&displacement](const cv::Point & p)
-    {
-        return p + displacement;
-    });
-
-    for ( size_t i = 0; i < 4; i++ )
+    for ( size_t i = 0; i < rotated_corners.size(); i++ )
     {
         cv::circle(rotated, rotated_corners[i], 2, CV_RGB(255, 0, 0));
     }
