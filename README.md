@@ -1,4 +1,4 @@
-opencv_exercise-rotation
+opencv_exercises-rotation
 ========================
 
 An exercise about image rotation in OpenCV.
