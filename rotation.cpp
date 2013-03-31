@@ -24,8 +24,6 @@ int main( int argc, char *argv[] )
     }
     cv::imshow("original", model_img);
 
-
-
     std::uniform_int_distribution<int> unif_x(0, model_img.cols);
     std::uniform_int_distribution<int> unif_y(0, model_img.rows);
     std::uniform_int_distribution<int> unif_alpha(0, 359);
@@ -83,18 +81,12 @@ int main( int argc, char *argv[] )
     // non c'è un modo semplice per usare cv::Mat come se fosse un opportuno cv::Point?
     // mi sa che c'è un errore nei punti disegnati sui corner, forse per via della conversione implicita da double a int
 
-
-
-
-
     cv::Size sz(bb.width, bb.height);
 
     cv::Point displacement(bb.width / 2 - rotated_midpoint.at<double>(0, 0), bb.height / 2 - rotated_midpoint.at<double>(1, 0));
 
     rot.at<double>(0, 2) += displacement.x;
     rot.at<double>(1, 2) += displacement.y;
-
-
 
     cv::Mat rotated;
     cv::warpAffine(model_img, rotated, rot, sz, cv::INTER_LINEAR, cv::BORDER_CONSTANT, CV_RGB(0, 0, 0));
