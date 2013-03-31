@@ -4,9 +4,8 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/calib3d/calib3d.hpp"
 
-#include <iostream>
+
 #include <algorithm>
-#include <random>
 
 double distance(const cv::Point &a, const cv::Point &b)
 {
@@ -75,6 +74,10 @@ void rotate( const cv::Mat &img, const cv::Point &center, int angle, cv::Mat &ro
 
     cv::warpAffine(img, rotated, rot, sz, cv::INTER_LINEAR, cv::BORDER_CONSTANT, CV_RGB(0, 0, 0));
 }
+
+
+#include <iostream>
+#include <random>
 
 int main( int argc, char *argv[] )
 {
